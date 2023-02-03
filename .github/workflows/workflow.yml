@@ -75,7 +75,7 @@ jobs:
 
   # End to end with proxy
   test-proxy-save-restore:
-    runs-on: [self-hosted, ubuntu-latest]
+    runs-on: ubuntu-latest
     container:
       image: ubuntu:latest
       options: --dns 127.0.0.1

@@ -91,7 +91,7 @@ export async function restoreCache(
     let archivePath = "";
     try {
         let matchedKey = "";
-        for (const key in keys) {
+        for (const key of keys) {
             const cacheFilePath = path.join(
                 utils.getCacheStorePath(cacheBasePath, key),
                 utils.getCacheFileName(compressionMethod)
