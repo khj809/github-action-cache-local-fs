@@ -7,12 +7,6 @@ on:
       - releases/**
     paths-ignore:
       - '**.md'
-  push:
-    branches:
-      - main
-      - releases/**
-    paths-ignore:
-      - '**.md'
 
 jobs:
   # Build and unit test
@@ -39,14 +33,12 @@ jobs:
       run: npm run test
 
   # End to end save and restore
-  test-save:
+  test-save-restore:
     strategy:
       matrix:
         os: [ubuntu-latest, macOS-latest]
       fail-fast: false
-    runs-on:
-      - self-hosted
-      - ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
     steps:
     - name: Checkout
       uses: actions/checkout@v3
@@ -57,46 +49,36 @@ jobs:
       shell: bash
       run: __tests__/create-cache-files.sh ${{ runner.os }} ~/test-cache
     - name: Save cache
-      uses: ./
+      uses: ./save
       with:
         key: test-${{ runner.os }}-${{ github.run_id }}
         path: |
           test-cache
           ~/test-cache
-  test-restore:
-    needs: test-save
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest, macOS-latest]
-      fail-fast: false
-    runs-on:
-      - self-hosted
-      - ${{ matrix.os }}
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v3
+    - name: Check cached file exists
+      run: ls -l /tmp/cache/${{ github.repository }}/test-${{ runner.os }}-${{ github.run_id }}
+    - name: Delete cached file before restore
+      run: |
+        rm -rf test-cache
+        rm -rf ~/test-cache
     - name: Restore cache
-      uses: ./
+      uses: ./restore
       with:
         key: test-${{ runner.os }}-${{ github.run_id }}
         path: |
           test-cache
           ~/test-cache
     - name: Verify cache files in working directory
-      shell: bash
       run: __tests__/verify-cache-files.sh ${{ runner.os }} test-cache
     - name: Verify cache files outside working directory
-      shell: bash
       run: __tests__/verify-cache-files.sh ${{ runner.os }} ~/test-cache
 
   # End to end with proxy
-  test-proxy-save:
+  test-proxy-save-restore:
     runs-on: [self-hosted, ubuntu-latest]
     container:
       image: ubuntu:latest
       options: --dns 127.0.0.1
-      volumes:
-        - /tmp/cache:/tmp/cache
     services:
       squid-proxy:
         image: ubuntu/squid:latest
@@ -110,30 +92,16 @@ jobs:
     - name: Generate files
       run: __tests__/create-cache-files.sh proxy test-cache
     - name: Save cache
-      uses: ./
+      uses: ./save
       with:
         key: test-proxy-${{ github.run_id }}
         path: test-cache
-  test-proxy-restore:
-    needs: test-proxy-save
-    runs-on: [self-hosted, ubuntu-latest]
-    container:
-      image: ubuntu:latest
-      options: --dns 127.0.0.1
-      volumes:
-        - /tmp/cache:/tmp/cache
-    services:
-      squid-proxy:
-        image: ubuntu/squid:latest
-        ports:
-          - 3128:3128
-    env:
-      https_proxy: http://squid-proxy:3128
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v3
+    - name: Check cached file exists
+      run: ls -l /tmp/cache/${{ github.repository }}/test-proxy-${{ github.run_id }}
+    - name: Delete cached file before restore
+      run: rm -rf test-cache
     - name: Restore cache
-      uses: ./
+      uses: ./restore
       with:
         key: test-proxy-${{ github.run_id }}
         path: test-cache
