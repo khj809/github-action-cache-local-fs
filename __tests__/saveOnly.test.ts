@@ -1,13 +1,13 @@
-import * as cache from "@actions/cache";
 import * as core from "@actions/core";
 
 import { Events, Inputs, RefKey } from "../src/constants";
+import * as cache from "../src/localCache";
 import run from "../src/saveOnly";
 import * as actionUtils from "../src/utils/actionUtils";
 import * as testUtils from "../src/utils/testUtils";
 
 jest.mock("@actions/core");
-jest.mock("@actions/cache");
+jest.mock("../src/localCache");
 jest.mock("../src/utils/actionUtils");
 
 beforeAll(() => {
@@ -81,26 +81,17 @@ test("save with valid inputs uploads a cache", async () => {
     const inputPath = "node_modules";
     testUtils.setInput(Inputs.Key, primaryKey);
     testUtils.setInput(Inputs.Path, inputPath);
-    testUtils.setInput(Inputs.UploadChunkSize, "4000000");
 
-    const cacheId = 4;
     const saveCacheMock = jest
         .spyOn(cache, "saveCache")
         .mockImplementationOnce(() => {
-            return Promise.resolve(cacheId);
+            return Promise.resolve(true);
         });
 
     await run();
 
     expect(saveCacheMock).toHaveBeenCalledTimes(1);
-    expect(saveCacheMock).toHaveBeenCalledWith(
-        [inputPath],
-        primaryKey,
-        {
-            uploadChunkSize: 4000000
-        },
-        false
-    );
+    expect(saveCacheMock).toHaveBeenCalledWith([inputPath], primaryKey, "");
 
     expect(failedMock).toHaveBeenCalledTimes(0);
 });
@@ -113,26 +104,17 @@ test("save failing logs the warning message", async () => {
     const inputPath = "node_modules";
     testUtils.setInput(Inputs.Key, primaryKey);
     testUtils.setInput(Inputs.Path, inputPath);
-    testUtils.setInput(Inputs.UploadChunkSize, "4000000");
 
-    const cacheId = -1;
     const saveCacheMock = jest
         .spyOn(cache, "saveCache")
         .mockImplementationOnce(() => {
-            return Promise.resolve(cacheId);
+            return Promise.resolve(false);
         });
 
     await run();
 
     expect(saveCacheMock).toHaveBeenCalledTimes(1);
-    expect(saveCacheMock).toHaveBeenCalledWith(
-        [inputPath],
-        primaryKey,
-        {
-            uploadChunkSize: 4000000
-        },
-        false
-    );
+    expect(saveCacheMock).toHaveBeenCalledWith([inputPath], primaryKey, "");
 
     expect(warningMock).toHaveBeenCalledTimes(1);
     expect(warningMock).toHaveBeenCalledWith("Cache save failed.");

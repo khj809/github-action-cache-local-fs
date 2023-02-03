@@ -5,17 +5,21 @@ on:
     branches:
       - main
       - releases/**
+    paths-ignore:
+      - '**.md'
   push:
     branches:
       - main
       - releases/**
+    paths-ignore:
+      - '**.md'
 
 jobs:
   # Build and unit test
   build:
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macOS-latest]
+        os: [ubuntu-latest, macOS-latest]
       fail-fast: false
     runs-on: ${{ matrix.os }}
     steps:
@@ -38,9 +42,9 @@ jobs:
   test-save:
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macOS-latest]
+        os: [ubuntu-latest, macOS-latest]
       fail-fast: false
-    runs-on: ${{ matrix.os }}
+    runs-on: [self-hosted, ${{ matrix.os }}]
     steps:
     - name: Checkout
       uses: actions/checkout@v3
@@ -63,7 +67,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macOS-latest]
       fail-fast: false
-    runs-on: ${{ matrix.os }}
+    runs-on: [self-hosted, ${{ matrix.os }}]
     steps:
     - name: Checkout
       uses: actions/checkout@v3
@@ -83,10 +87,12 @@ jobs:
 
   # End to end with proxy
   test-proxy-save:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-latest]
     container:
       image: ubuntu:latest
       options: --dns 127.0.0.1
+      volumes:
+        - /tmp/cache:/tmp/cache
     services:
       squid-proxy:
         image: ubuntu/squid:latest
@@ -106,10 +112,12 @@ jobs:
         path: test-cache
   test-proxy-restore:
     needs: test-proxy-save
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-latest]
     container:
       image: ubuntu:latest
       options: --dns 127.0.0.1
+      volumes:
+        - /tmp/cache:/tmp/cache
     services:
       squid-proxy:
         image: ubuntu/squid:latest

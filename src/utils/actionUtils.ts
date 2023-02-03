@@ -1,7 +1,7 @@
-import * as cache from "@actions/cache";
 import * as core from "@actions/core";
 
 import { RefKey } from "../constants";
+import * as cache from "../localCache";
 
 export function isGhes(): boolean {
     const ghUrl = new URL(

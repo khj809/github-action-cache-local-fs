@@ -1,7 +1,7 @@
-import * as cache from "@actions/cache";
 import * as core from "@actions/core";
 
 import { Events, Inputs, State } from "./constants";
+import * as cache from "./localCache";
 import { IStateProvider } from "./stateProvider";
 import * as utils from "./utils/actionUtils";
 
@@ -10,8 +10,9 @@ import * as utils from "./utils/actionUtils";
 // throw an uncaught exception.  Instead of failing this action, just warn.
 process.on("uncaughtException", e => utils.logWarning(e.message));
 
-async function saveImpl(stateProvider: IStateProvider): Promise<number | void> {
-    let cacheId = -1;
+async function saveImpl(
+    stateProvider: IStateProvider
+): Promise<boolean | undefined> {
     try {
         if (!utils.isCacheFeatureAvailable()) {
             return;
@@ -52,24 +53,20 @@ async function saveImpl(stateProvider: IStateProvider): Promise<number | void> {
             required: true
         });
 
-        const enableCrossOsArchive = utils.getInputAsBool(
-            Inputs.EnableCrossOsArchive
-        );
+        const cacheBasePath = core.getInput(Inputs.CacheBasePath);
 
-        cacheId = await cache.saveCache(
+        const result = await cache.saveCache(
             cachePaths,
             primaryKey,
-            { uploadChunkSize: utils.getInputAsInt(Inputs.UploadChunkSize) },
-            enableCrossOsArchive
+            cacheBasePath
         );
 
-        if (cacheId != -1) {
-            core.info(`Cache saved with key: ${primaryKey}`);
-        }
+        core.info(`Cache saved with key: ${primaryKey}`);
+
+        return result;
     } catch (error: unknown) {
         utils.logWarning((error as Error).message);
     }
-    return cacheId;
 }
 
 export default saveImpl;

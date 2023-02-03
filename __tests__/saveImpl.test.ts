@@ -1,14 +1,14 @@
-import * as cache from "@actions/cache";
 import * as core from "@actions/core";
 
 import { Events, Inputs, RefKey } from "../src/constants";
+import * as cache from "../src/localCache";
 import run from "../src/saveImpl";
 import { StateProvider } from "../src/stateProvider";
 import * as actionUtils from "../src/utils/actionUtils";
 import * as testUtils from "../src/utils/testUtils";
 
 jest.mock("@actions/core");
-jest.mock("@actions/cache");
+jest.mock("../src/localCache");
 jest.mock("../src/utils/actionUtils");
 
 beforeAll(() => {
@@ -152,26 +152,17 @@ test("save on GHES with AC available", async () => {
 
     const inputPath = "node_modules";
     testUtils.setInput(Inputs.Path, inputPath);
-    testUtils.setInput(Inputs.UploadChunkSize, "4000000");
 
-    const cacheId = 4;
     const saveCacheMock = jest
         .spyOn(cache, "saveCache")
         .mockImplementationOnce(() => {
-            return Promise.resolve(cacheId);
+            return Promise.resolve(true);
         });
 
     await run(new StateProvider());
 
     expect(saveCacheMock).toHaveBeenCalledTimes(1);
-    expect(saveCacheMock).toHaveBeenCalledWith(
-        [inputPath],
-        primaryKey,
-        {
-            uploadChunkSize: 4000000
-        },
-        false
-    );
+    expect(saveCacheMock).toHaveBeenCalledWith([inputPath], primaryKey, "");
 
     expect(failedMock).toHaveBeenCalledTimes(0);
 });
@@ -231,98 +222,6 @@ test("save with missing input outputs warning", async () => {
     expect(failedMock).toHaveBeenCalledTimes(0);
 });
 
-test("save with large cache outputs warning", async () => {
-    const logWarningMock = jest.spyOn(actionUtils, "logWarning");
-    const failedMock = jest.spyOn(core, "setFailed");
-
-    const primaryKey = "Linux-node-bb828da54c148048dd17899ba9fda624811cfb43";
-    const savedCacheKey = "Linux-node-";
-
-    jest.spyOn(core, "getState")
-        // Cache Entry State
-        .mockImplementationOnce(() => {
-            return savedCacheKey;
-        })
-        // Cache Key State
-        .mockImplementationOnce(() => {
-            return primaryKey;
-        });
-
-    const inputPath = "node_modules";
-    testUtils.setInput(Inputs.Path, inputPath);
-
-    const saveCacheMock = jest
-        .spyOn(cache, "saveCache")
-        .mockImplementationOnce(() => {
-            throw new Error(
-                "Cache size of ~6144 MB (6442450944 B) is over the 5GB limit, not saving cache."
-            );
-        });
-
-    await run(new StateProvider());
-
-    expect(saveCacheMock).toHaveBeenCalledTimes(1);
-    expect(saveCacheMock).toHaveBeenCalledWith(
-        [inputPath],
-        primaryKey,
-        expect.anything(),
-        false
-    );
-
-    expect(logWarningMock).toHaveBeenCalledTimes(1);
-    expect(logWarningMock).toHaveBeenCalledWith(
-        "Cache size of ~6144 MB (6442450944 B) is over the 5GB limit, not saving cache."
-    );
-    expect(failedMock).toHaveBeenCalledTimes(0);
-});
-
-test("save with reserve cache failure outputs warning", async () => {
-    const logWarningMock = jest.spyOn(actionUtils, "logWarning");
-    const failedMock = jest.spyOn(core, "setFailed");
-
-    const primaryKey = "Linux-node-bb828da54c148048dd17899ba9fda624811cfb43";
-    const savedCacheKey = "Linux-node-";
-
-    jest.spyOn(core, "getState")
-        // Cache Entry State
-        .mockImplementationOnce(() => {
-            return savedCacheKey;
-        })
-        // Cache Key State
-        .mockImplementationOnce(() => {
-            return primaryKey;
-        });
-
-    const inputPath = "node_modules";
-    testUtils.setInput(Inputs.Path, inputPath);
-
-    const saveCacheMock = jest
-        .spyOn(cache, "saveCache")
-        .mockImplementationOnce(() => {
-            const actualCache = jest.requireActual("@actions/cache");
-            const error = new actualCache.ReserveCacheError(
-                `Unable to reserve cache with key ${primaryKey}, another job may be creating this cache.`
-            );
-            throw error;
-        });
-
-    await run(new StateProvider());
-
-    expect(saveCacheMock).toHaveBeenCalledTimes(1);
-    expect(saveCacheMock).toHaveBeenCalledWith(
-        [inputPath],
-        primaryKey,
-        expect.anything(),
-        false
-    );
-
-    expect(logWarningMock).toHaveBeenCalledWith(
-        `Unable to reserve cache with key ${primaryKey}, another job may be creating this cache.`
-    );
-    expect(logWarningMock).toHaveBeenCalledTimes(1);
-    expect(failedMock).toHaveBeenCalledTimes(0);
-});
-
 test("save with server error outputs warning", async () => {
     const logWarningMock = jest.spyOn(actionUtils, "logWarning");
     const failedMock = jest.spyOn(core, "setFailed");
@@ -352,12 +251,7 @@ test("save with server error outputs warning", async () => {
     await run(new StateProvider());
 
     expect(saveCacheMock).toHaveBeenCalledTimes(1);
-    expect(saveCacheMock).toHaveBeenCalledWith(
-        [inputPath],
-        primaryKey,
-        expect.anything(),
-        false
-    );
+    expect(saveCacheMock).toHaveBeenCalledWith([inputPath], primaryKey, "");
 
     expect(logWarningMock).toHaveBeenCalledTimes(1);
     expect(logWarningMock).toHaveBeenCalledWith("HTTP Error Occurred");
@@ -383,26 +277,17 @@ test("save with valid inputs uploads a cache", async () => {
 
     const inputPath = "node_modules";
     testUtils.setInput(Inputs.Path, inputPath);
-    testUtils.setInput(Inputs.UploadChunkSize, "4000000");
 
-    const cacheId = 4;
     const saveCacheMock = jest
         .spyOn(cache, "saveCache")
         .mockImplementationOnce(() => {
-            return Promise.resolve(cacheId);
+            return Promise.resolve(true);
         });
 
     await run(new StateProvider());
 
     expect(saveCacheMock).toHaveBeenCalledTimes(1);
-    expect(saveCacheMock).toHaveBeenCalledWith(
-        [inputPath],
-        primaryKey,
-        {
-            uploadChunkSize: 4000000
-        },
-        false
-    );
+    expect(saveCacheMock).toHaveBeenCalledWith([inputPath], primaryKey, "");
 
     expect(failedMock).toHaveBeenCalledTimes(0);
 });

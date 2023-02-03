@@ -1,7 +1,7 @@
-import * as cache from "@actions/cache";
 import * as core from "@actions/core";
 
 import { Events, Inputs, Outputs, State } from "./constants";
+import * as cache from "./localCache";
 import { IStateProvider } from "./stateProvider";
 import * as utils from "./utils/actionUtils";
 
@@ -31,17 +31,14 @@ async function restoreImpl(
         const cachePaths = utils.getInputAsArray(Inputs.Path, {
             required: true
         });
-        const enableCrossOsArchive = utils.getInputAsBool(
-            Inputs.EnableCrossOsArchive
-        );
+        const cacheBasePath = core.getInput(Inputs.CacheBasePath);
         const failOnCacheMiss = utils.getInputAsBool(Inputs.FailOnCacheMiss);
 
         const cacheKey = await cache.restoreCache(
             cachePaths,
             primaryKey,
             restoreKeys,
-            {},
-            enableCrossOsArchive
+            cacheBasePath
         );
 
         if (!cacheKey) {
